@@ -29,14 +29,19 @@ class Images(Dataset):
     def __getitem__(self, item):
         image = self.images[item]
         label = self.labels[item]
-        # 144, 256
-        if image.size[0] > image.size[1]:
-            image = image.rotate(90)
-        image = image.resize((180, 320))
 
         image_tensor = self.pil2tensor(image) / 255.
         label_tensor = torch.tensor([label])
-        return image_tensor.to(self.device), label_tensor.to(self.device)
+
+        # random 16x16 sub-tensor
+        sub_list = []
+        for i in range(25):
+            h_start = (i // 5) * image_tensor.shape[1] // 20
+            w_start = (i % 5) * image_tensor.shape[2] // 20
+            sub_list.append(image_tensor[:, h_start:h_start + 64, w_start:w_start + 64])
+
+        sub_tensors = torch.cat(sub_list, dim=1)
+        return sub_tensors.to(self.device), label_tensor.to(self.device)
 
     def __len__(self):
         return len(self.images)
@@ -45,53 +50,47 @@ class Images(Dataset):
 class Net(nn.Module):
     def __init__(self):
         """
-        Input: (180, 320)
+        Input: (1600, 64)
         """
         super(Net, self).__init__()
 
         self.conv1 = nn.Conv2d(3, 6, 3)
         self.conv2 = nn.Conv2d(6, 12, 3)
         self.conv3 = nn.Conv2d(12, 18, 3)
-        self.conv4 = nn.Conv2d(18, 24, 5)
-
-        self.conv5 = nn.Conv2d(3, 6, 11)
-        self.conv6 = nn.Conv2d(6, 12, 9)
-        self.conv7 = nn.Conv2d(12, 18, 9)
-        self.conv8 = nn.Conv2d(18, 24, 9)
+        self.conv4 = nn.Conv2d(18, 24, 3)
 
         self.pool = nn.MaxPool2d(2)
 
-        self.fc1 = nn.Linear(4128, 1024)
-        self.fc2 = nn.Linear(1024, 128)
-        self.fc3 = nn.Linear(128, 16)
-        self.fc4 = nn.Linear(16, 1)
+        self.fc1 = nn.Linear(9600, 2048)
+        self.fc2 = nn.Linear(2048, 512)
+        self.fc3 = nn.Linear(512, 128)
+        self.fc4 = nn.Linear(128, 16)
+        self.fc5 = nn.Linear(16, 1)
 
     def forward(self, x):
-        x1 = torch.relu(self.pool(self.conv1(x)))
-        x1 = torch.relu(self.pool(self.conv2(x1)))
-        x1 = torch.relu(self.pool(self.conv3(x1)))
-        x1 = torch.relu(self.pool(self.conv4(x1)))
-        x1 = torch.flatten(x1, start_dim=1)
+        sub_tensors = [x[:, :, i * 64:((i + 1) * 64)] for i in range(25)]
+        sub_output = []
 
-        x2 = torch.relu(self.pool(self.conv5(x)))
-        x2 = torch.relu(self.pool(self.conv6(x2)))
-        x2 = torch.relu(self.pool(self.conv7(x2)))
-        x2 = torch.relu(self.pool(self.conv8(x2)))
-        x2 = torch.flatten(x2, start_dim=1)
+        for i, item in enumerate(sub_tensors):
+            x1 = torch.relu(self.pool(self.conv1(item)))
+            x1 = torch.relu(self.pool(self.conv2(x1)))
+            x1 = torch.relu(self.pool(self.conv3(x1)))
+            x1 = torch.relu(self.conv4(x1))
+            sub_output.append(torch.flatten(x1, start_dim=1))
 
-        x = torch.cat((x1, x2), 1)
-
+        x = torch.cat(sub_output, dim=1)
         x = torch.relu(self.fc1(x))
         x = torch.relu(self.fc2(x))
         x = torch.relu(self.fc3(x))
-        x = torch.sigmoid(self.fc4(x))
+        x = torch.relu(self.fc4(x))
+        x = torch.sigmoid(self.fc5(x))
 
         return x
 
 
 def model_train(train_set, test_set, epochs, learning_rate, batch_size, test_while_train=True, verbose=False):
     net = Net().to(device)
-    optimizer = optim.Adam(net.parameters(), lr=learning_rate, weight_decay=0.001)
+    optimizer = optim.Adam(net.parameters(), lr=learning_rate)
     bce = nn.BCELoss().to(device)
 
     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
@@ -171,10 +170,10 @@ def L1(net: nn.Module):
 
 
 if __name__ == '__main__':
-    lr = 0.000015
+    lr = 0.00002
     batch = 5
 
-    writer = SummaryWriter(comment=f'L2_lr_{lr}_batch_{batch}')
+    writer = SummaryWriter(comment=f'lr_{lr}_batch_{batch}_64x64')
     dataset = Images('data', device)
     train_size = int(len(dataset) * 0.8)
     test_size = len(dataset) - train_size
@@ -182,4 +181,4 @@ if __name__ == '__main__':
 
     model = model_train(train, test, epochs=250, batch_size=batch, learning_rate=lr)
 
-    torch.save(model.state_dict(), f'saved_models/lr_{lr}_batch_{batch}.pt')
+    torch.save(model.state_dict(), f'saved_models/lr_{lr}_batch_{batch}_64x64.pt')
