@@ -33,12 +33,25 @@ class Images(Dataset):
         image_tensor = self.pil2tensor(image) / 255.
         label_tensor = torch.tensor([label])
 
-        # random 16x16 sub-tensor
+        # 64x64 sub-tensor
         sub_list = []
-        for i in range(25):
-            h_start = (i // 5) * image_tensor.shape[1] // 20
-            w_start = (i % 5) * image_tensor.shape[2] // 20
-            sub_list.append(image_tensor[:, h_start:h_start + 64, w_start:w_start + 64])
+        h_num = min(image_tensor.shape[1] // 64, 5)
+        w_num = min(image_tensor.shape[2] // 64, 5)
+        for i in range(5):
+            for j in range(5):
+                if i < h_num < 5:
+                    h_start = (h_num - 1) * 64
+                elif h_num < 5 and i >= h_num:
+                    h_start = h_num - 1
+                else:
+                    h_start = i * (image_tensor.shape[1] // 5)
+                if j < w_num < 5:
+                    w_start = (w_num - 1) * 64
+                elif w_num < 5 and i >= w_num:
+                    w_start = w_num - 1
+                else:
+                    w_start = i * (image_tensor.shape[2] // 5)
+                sub_list.append(image_tensor[:, h_start:h_start + 64, w_start:w_start + 64])
 
         sub_tensors = torch.cat(sub_list, dim=1)
         return sub_tensors.to(self.device), label_tensor.to(self.device)
@@ -170,7 +183,7 @@ def L1(net: nn.Module):
 
 
 if __name__ == '__main__':
-    lr = 0.00002
+    lr = 0.00001
     batch = 5
 
     writer = SummaryWriter(comment=f'lr_{lr}_batch_{batch}_64x64')
