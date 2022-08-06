@@ -122,19 +122,21 @@ def model_train(train_set, test_set, epochs, learning_rate, batch_size, test_whi
 
         epoch_loss /= len(train_set)
         writer.add_scalar('Loss/train', epoch_loss, epoch)
+        train_acc, _ = model_test(train_set, net)
+        writer.add_scalar('F1 score/train', train_acc, epoch)
+
         if verbose:
             print(f'Epoch {epoch} Loss/Train {epoch_loss}')
+            print(f'Epoch {epoch} F1 score/train {train_acc}')
+
         if test_while_train:
             net.eval()
-            train_acc, _ = model_test(train_set, net)
             test_acc, test_loss = model_test(test_set, net)
             writer.add_scalar('Loss/test', test_loss, epoch)
-            writer.add_scalar('F1 score/train', train_acc, epoch)
             writer.add_scalar('F1 score/test', test_acc, epoch)
             if verbose:
                 print(f'Epoch {epoch} Loss/test {test_loss}')
-                print(f'Epoch {epoch} Accuracy/train {train_acc}')
-                print(f'Epoch {epoch} Accuracy/test {test_acc}')
+                print(f'Epoch {epoch} F1/test {test_acc}')
 
     return net
 
