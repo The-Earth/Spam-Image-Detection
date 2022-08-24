@@ -35,23 +35,11 @@ class Images(Dataset):
 
         # 64x64 sub-tensor
         sub_list = []
-        h_num = min(image_tensor.shape[1] // 64, 5)
-        w_num = min(image_tensor.shape[2] // 64, 5)
-        for i in range(5):
-            for j in range(5):
-                if i < h_num < 5:
-                    h_start = (h_num - 1) * 64
-                elif h_num < 5 and i >= h_num:
-                    h_start = h_num - 1
-                else:
-                    h_start = i * (image_tensor.shape[1] // 5)
-                if j < w_num < 5:
-                    w_start = (w_num - 1) * 64
-                elif w_num < 5 and i >= w_num:
-                    w_start = w_num - 1
-                else:
-                    w_start = i * (image_tensor.shape[2] // 5)
-                sub_list.append(image_tensor[:, h_start:h_start + 64, w_start:w_start + 64])
+
+        for i in range(25):
+            h_start = torch.randint(0, image_tensor.shape[1] - 64, (1,))
+            w_start = torch.randint(0, image_tensor.shape[2] - 64, (1,))
+            sub_list.append(image_tensor[:, h_start:h_start + 64, w_start:w_start + 64])
 
         sub_tensors = torch.cat(sub_list, dim=1)
         return sub_tensors.to(self.device), label_tensor.to(self.device)
@@ -107,7 +95,7 @@ class Net(nn.Module):
 
 def model_train(train_set, test_set, epochs, learning_rate, batch_size, test_while_train=True, verbose=False):
     net = Net().to(device)
-    optimizer = optim.Adam(net.parameters(), lr=learning_rate, weight_decay=0.001)
+    optimizer = optim.Adam(net.parameters(), lr=learning_rate)
     bce = nn.BCELoss().to(device)
 
     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
@@ -118,7 +106,7 @@ def model_train(train_set, test_set, epochs, learning_rate, batch_size, test_whi
         for batch_x, batch_y in train_loader:
             optimizer.zero_grad()
             batch_pred = net(batch_x)
-            batch_loss = bce(batch_pred, batch_y) # + 0.00001 * L1(net)
+            batch_loss = bce(batch_pred, batch_y)  # + 0.000001 * L1(net)
             batch_loss.backward()
             optimizer.step()
 
@@ -189,8 +177,8 @@ def L1(net: nn.Module):
 
 
 if __name__ == '__main__':
-    lr = 0.0003
-    batch = 20
+    lr = 0.00005
+    batch = 50
 
     writer = SummaryWriter(comment=f'lr_{lr}_batch_{batch}_64x64')
     dataset = Images('data', device)
@@ -198,6 +186,6 @@ if __name__ == '__main__':
     test_size = len(dataset) - train_size
     train, test = random_split(dataset, [train_size, test_size])
 
-    model = model_train(train, test, epochs=200, batch_size=batch, learning_rate=lr, test_while_train=True)
+    model = model_train(train, test, epochs=1000, batch_size=batch, learning_rate=lr, test_while_train=True)
 
     torch.save(model.state_dict(), f'saved_models/lr_{lr}_batch_{batch}_64x64.pt')
