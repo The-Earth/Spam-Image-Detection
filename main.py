@@ -6,7 +6,7 @@ from torch.utils.tensorboard import SummaryWriter
 from torchvision.transforms import PILToTensor
 from tqdm import tqdm
 import os
-from PIL import Image, ImageFilter, ImageOps, ImageEnhance
+from PIL import Image
 
 # torch.manual_seed(0)
 torch.set_default_dtype(torch.float32)
@@ -135,7 +135,7 @@ def model_train(train_set, test_set, epochs, learning_rate, batch_size, test_whi
 
 def model_test(test_set: Dataset, net: nn.Module):
     net.eval()
-    test_x, test_y = next(iter(DataLoader(test_set, batch_size=20, shuffle=True)))
+    test_x, test_y = next(iter(DataLoader(test_set, batch_size=50, shuffle=True)))
     bce = nn.BCELoss().to(device)
 
     tp = 0
@@ -177,8 +177,8 @@ def L1(net: nn.Module):
 
 
 if __name__ == '__main__':
-    lr = 0.00005
-    batch = 50
+    lr = 0.0002
+    batch = 100
 
     writer = SummaryWriter(comment=f'lr_{lr}_batch_{batch}_64x64')
     dataset = Images('data', device)
