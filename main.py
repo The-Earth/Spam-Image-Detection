@@ -119,20 +119,20 @@ def model_train(train_set, test_set, epochs, learning_rate, batch_size, test_whi
         epoch_loss /= len(train_set)
         writer.add_scalar('Loss/train', epoch_loss, epoch)
         train_acc, _ = model_test(train_set, net)
-        writer.add_scalar('F1 score/train', train_acc, epoch)
+        writer.add_scalar('Precision/train', train_acc, epoch)
 
         if verbose:
             print(f'Epoch {epoch} Loss/Train {epoch_loss}')
-            print(f'Epoch {epoch} F1 score/train {train_acc}')
+            print(f'Epoch {epoch} Precision/train {train_acc}')
 
         if test_while_train:
             net.eval()
             test_acc, test_loss = model_test(test_set, net)
             writer.add_scalar('Loss/test', test_loss, epoch)
-            writer.add_scalar('F1 score/test', test_acc, epoch)
+            writer.add_scalar('Precision/test', test_acc, epoch)
             if verbose:
                 print(f'Epoch {epoch} Loss/test {test_loss}')
-                print(f'Epoch {epoch} F1/test {test_acc}')
+                print(f'Epoch {epoch} Precision/test {test_acc}')
 
     return net
 
@@ -158,19 +158,32 @@ def model_test(test_set: Dataset, net: nn.Module):
             elif item < 0.5 and test_y[i] > 0.5:
                 fn += 1
 
-    if tp + fp == 0:
-        precision = 0
-    else:
-        precision = tp / (tp + fp)
-    if tp + fn == 0:
-        recall = 0
-    else:
-        recall = tp / (tp + fn)
+    # return f1(tp, fp, fn), loss
+    return precision(tp, fp), loss
 
-    if precision + recall == 0:
-        return 0, loss
+
+def f1(tp, fp, fn):
+    prec = precision(tp, fp)
+    rec = recall(tp, fn)
+
+    if prec + rec == 0:
+        return 0
     else:
-        return 2 * precision * recall / (precision + recall), loss
+        return 2 * prec * rec / (prec + rec)
+
+
+def precision(tp, fp):
+    if tp + fp == 0:
+        return 0
+    else:
+        return tp / (tp + fp)
+
+
+def recall(tp, fn):
+    if tp + fn == 0:
+        return 0
+    else:
+        return tp / (tp + fn)
 
 
 def L1(net: nn.Module):
