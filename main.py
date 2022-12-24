@@ -30,8 +30,10 @@ class Images(Dataset):
         image = self.images[item]
         label = self.labels[item]
 
-        image_tensor = self.pil2tensor(image) / 255.
-        label_tensor = torch.tensor([label])
+        image_tensor = self.pil2tensor(image).to(self.device) / 255.
+        # image_tensor = image
+        label_tensor = torch.tensor([label], device=self.device)
+        # label_tensor = label
 
         # 64x64 sub-tensor
         sub_list = []
@@ -42,7 +44,7 @@ class Images(Dataset):
             sub_list.append(image_tensor[:, h_start:h_start + 128, w_start:w_start + 128])
 
         sub_tensors = torch.cat(sub_list, dim=1)
-        return sub_tensors.to(self.device), label_tensor.to(self.device)
+        return sub_tensors, label_tensor
 
     def __len__(self):
         return len(self.images)
