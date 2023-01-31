@@ -31,11 +31,9 @@ class Images(Dataset):
         label = self.labels[item]
 
         image_tensor = self.pil2tensor(image).to(self.device) / 255.
-        # image_tensor = image
         label_tensor = torch.tensor([label], device=self.device)
-        # label_tensor = label
 
-        # 64x64 sub-tensor
+        # build up 128x128 sub-tensors
         sub_list = []
 
         for i in range(25):
