@@ -52,9 +52,6 @@ class Images(Dataset):
 
 class Net(nn.Module):
     def __init__(self):
-        """
-        Input: (1600, 64)
-        """
         super(Net, self).__init__()
 
         self.conv1 = nn.Conv2d(3, 6, 3)
