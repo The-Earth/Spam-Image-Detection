@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset, random_split
 from torch.utils.tensorboard import SummaryWriter
-from torchvision.transforms import PILToTensor
+from torchvision.transforms import ToTensor
 from tqdm import tqdm
 import os
 from PIL import Image
@@ -18,7 +18,7 @@ class Images(Dataset):
         self.images = []
         self.labels = []
         self.device = device
-        self.pil2tensor = PILToTensor()
+        self.pil2tensor = ToTensor()
         for file in os.listdir(f'{path}/negative/'):
             self.images.append(Image.open(f'{path}/negative/{file}'))
             self.labels.append(0.)
@@ -30,7 +30,7 @@ class Images(Dataset):
         image = self.images[item]
         label = self.labels[item]
 
-        image_tensor = self.pil2tensor(image).to(self.device) / 255.
+        image_tensor = self.pil2tensor(image).to(self.device)
         label_tensor = torch.tensor([label], device=self.device)
 
         # build up 128x128 sub-tensors
@@ -198,6 +198,7 @@ if __name__ == '__main__':
     test_size = len(dataset) - train_size
     train, test = random_split(dataset, [train_size, test_size])
 
-    model = model_train(train, test, epochs=500, batch_size=batch, learning_rate=lr, test_while_train=True)
+    # model = model_train(train, test, epochs=500, batch_size=batch, learning_rate=lr, test_while_train=False)
+    model = model_train(dataset, test, epochs=500, batch_size=batch, learning_rate=lr, test_while_train=False)
 
     torch.save(model.state_dict(), f'saved_models/lr_{lr}_batch_{batch}_128.pt')
