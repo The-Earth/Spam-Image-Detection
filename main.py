@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset, random_split
 from torch.utils.tensorboard import SummaryWriter
-from torchvision.transforms import ToTensor
+from torchvision import transforms
 from tqdm import tqdm
 import os
 from PIL import Image
@@ -18,20 +18,24 @@ class Images(Dataset):
         self.images = []
         self.labels = []
         self.device = device
-        self.pil2tensor = ToTensor()
+        self.transform = transforms.Compose([
+            transforms.PILToTensor(),
+            transforms.ConvertImageDtype(torch.float32),
+        ])
         for file in os.listdir(f'{path}/negative/'):
-            self.images.append(Image.open(f'{path}/negative/{file}'))
-            self.labels.append(0.)
+            img = Image.open(f'{path}/negative/{file}')
+            image_tensor = self.transform(img).to(self.device)
+            self.images.append(image_tensor)
+            self.labels.append(torch.tensor([0.], device=self.device))
         for file in os.listdir(f'{path}/positive/'):
-            self.images.append(Image.open(f'{path}/positive/{file}'))
-            self.labels.append(1.)
+            img = Image.open(f'{path}/positive/{file}')
+            image_tensor = self.transform(img).to(self.device)
+            self.images.append(image_tensor)
+            self.labels.append(torch.tensor([1.], device=self.device))
 
     def __getitem__(self, item):
-        image = self.images[item]
-        label = self.labels[item]
-
-        image_tensor = self.pil2tensor(image).to(self.device)
-        label_tensor = torch.tensor([label], device=self.device)
+        image_tensor = self.images[item]
+        label_tensor = self.labels[item]
 
         # build up 128x128 sub-tensors
         sub_list = []
@@ -198,7 +202,7 @@ if __name__ == '__main__':
     test_size = len(dataset) - train_size
     train, test = random_split(dataset, [train_size, test_size])
 
-    # model = model_train(train, test, epochs=500, batch_size=batch, learning_rate=lr, test_while_train=False)
-    model = model_train(dataset, test, epochs=500, batch_size=batch, learning_rate=lr, test_while_train=False)
+    # model = model_train(train, test, epochs=250, batch_size=batch, learning_rate=lr, test_while_train=True)
+    model = model_train(dataset, test, epochs=200, batch_size=batch, learning_rate=lr, test_while_train=False)
 
     torch.save(model.state_dict(), f'saved_models/lr_{lr}_batch_{batch}_128.pt')
