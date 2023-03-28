@@ -56,16 +56,36 @@ class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
 
-        self.conv1 = nn.Conv2d(3, 6, 3)
-        self.conv2 = nn.Conv2d(6, 12, 3)
-        self.conv3 = nn.Conv2d(12, 18, 3)
-        self.conv4 = nn.Conv2d(18, 24, 3)
+        self.conv1 = nn.Conv2d(3, 16, 3, padding='same')
+        self.conv2_1 = nn.Conv2d(16, 16, 3, padding='same')
+        self.conv2_2 = nn.Conv2d(16, 16, 3, padding='same')
+        self.conv2_3 = nn.Conv2d(16, 16, 3, padding='same')
+        self.conv2_4 = nn.Conv2d(16, 16, 3, padding='same')
 
-        self.pool = nn.MaxPool2d(2)
+        self.conv3 = nn.Conv2d(16, 32, 3, padding='same')
+        self.conv3_1 = nn.Conv2d(32, 32, 3, padding='same')
+        self.conv3_res = nn.Conv2d(16, 32, 1, stride=2)
+        self.conv3_2 = nn.Conv2d(32, 32, 3, padding='same')
+        self.conv3_3 = nn.Conv2d(32, 32, 3, padding='same')
 
-        self.fc1 = nn.Linear(3456, 256)
-        self.fc2 = nn.Linear(256, 64)
-        self.fc3 = nn.Linear(64, 16)
+        self.conv4 = nn.Conv2d(32, 64, 3, padding='same')
+        self.conv4_1 = nn.Conv2d(64, 64, 3, padding='same')
+        self.conv4_res = nn.Conv2d(32, 64, 1, stride=2)
+        self.conv4_2 = nn.Conv2d(64, 64, 3, padding='same')
+        self.conv4_3 = nn.Conv2d(64, 64, 3, padding='same')
+
+        self.conv5 = nn.Conv2d(64, 128, 3, padding='same')
+        self.conv5_1 = nn.Conv2d(128, 128, 3, padding='same')
+        self.conv5_res = nn.Conv2d(64, 128, 1, stride=2)
+        self.conv5_2 = nn.Conv2d(128, 128, 3, padding='same')
+        self.conv5_3 = nn.Conv2d(128, 128, 3, padding='same')
+
+        self.max_pool = nn.MaxPool2d(2)
+        self.avg_pool = nn.AvgPool2d(2)
+
+        self.fc1 = nn.Linear(2048, 1024)
+        self.fc2 = nn.Linear(1024, 128)
+        self.fc3 = nn.Linear(128, 16)
 
         self.fc4 = nn.Linear(400, 80)
         self.fc5 = nn.Linear(80, 10)
@@ -76,10 +96,40 @@ class Net(nn.Module):
         sub_output = []
 
         for i, item in enumerate(sub_tensors):
-            x1 = torch.relu(self.pool(self.conv1(item)))
-            x1 = torch.relu(self.pool(self.conv2(x1)))
-            x1 = torch.relu(self.pool(self.conv3(x1)))
-            x1 = torch.relu(self.conv4(x1))
+            x1 = self.max_pool(torch.relu(self.conv1(item)))
+            x2 = torch.relu(self.conv2_1(x1))
+            x2 = torch.relu(self.conv2_2(x2))
+            x1 = torch.relu(x1 + x2)
+            x2 = torch.relu(self.conv2_3(x1))
+            x2 = torch.relu(self.conv2_4(x2))
+            x1 = torch.relu(x1 + x2)
+
+            x2 = self.max_pool(torch.relu(self.conv3(x1)))
+            x2 = torch.relu(self.conv3_1(x2))
+            x3 = torch.relu(self.conv3_res(x1))
+            x1 = torch.relu(x2 + x3)
+            x2 = torch.relu(self.conv3_2(x1))
+            x2 = torch.relu(self.conv3_3(x2))
+            x1 = torch.relu(x1 + x2)
+
+            x2 = self.max_pool(torch.relu(self.conv4(x1)))
+            x2 = torch.relu(self.conv4_1(x2))
+            x3 = torch.relu(self.conv4_res(x1))
+            x1 = torch.relu(x2 + x3)
+            x2 = torch.relu(self.conv4_2(x1))
+            x2 = torch.relu(self.conv4_3(x2))
+            x1 = torch.relu(x1 + x2)
+
+            x2 = self.max_pool(torch.relu(self.conv5(x1)))
+            x2 = torch.relu(self.conv5_1(x2))
+            x3 = torch.relu(self.conv5_res(x1))
+            x1 = torch.relu(x2 + x3)
+            x2 = torch.relu(self.conv5_2(x1))
+            x2 = torch.relu(self.conv5_3(x2))
+            x1 = torch.relu(x1 + x2)
+
+            x1 = self.avg_pool(x1)
+
             x1 = torch.flatten(x1, start_dim=1)
 
             x1 = torch.relu(self.fc1(x1))
@@ -193,7 +243,7 @@ def L1(net: nn.Module):
 
 
 if __name__ == '__main__':
-    lr = 0.0002
+    lr = 0.00005
     batch = 25
 
     writer = SummaryWriter(comment=f'lr_{lr}_batch_{batch}_128')
@@ -202,7 +252,7 @@ if __name__ == '__main__':
     test_size = len(dataset) - train_size
     train, test = random_split(dataset, [train_size, test_size])
 
-    # model = model_train(train, test, epochs=250, batch_size=batch, learning_rate=lr, test_while_train=True)
+    # model = model_train(train, test, epochs=500, batch_size=batch, learning_rate=lr, test_while_train=True)
     model = model_train(dataset, test, epochs=200, batch_size=batch, learning_rate=lr, test_while_train=False)
 
-    torch.save(model.state_dict(), f'saved_models/lr_{lr}_batch_{batch}_128.pt')
+    torch.save(model.state_dict(), f'saved_models/lr_{lr}_batch_{batch}.pt')
