@@ -37,16 +37,21 @@ class Images(Dataset):
         image_tensor = self.images[item]
         label_tensor = self.labels[item]
 
-        # build up 128x128 sub-tensors
-        sub_list = []
+        image_tensor = self._crop(image_tensor)
 
-        for i in range(25):
-            h_start = torch.randint(0, image_tensor.shape[1] - 128, (1,))
-            w_start = torch.randint(0, image_tensor.shape[2] - 128, (1,))
-            sub_list.append(image_tensor[:, h_start:h_start + 128, w_start:w_start + 128])
+        return image_tensor, label_tensor
 
-        sub_tensors = torch.cat(sub_list, dim=1)
-        return sub_tensors, label_tensor
+    @staticmethod
+    def _crop(t: torch.Tensor) -> torch.Tensor:
+        """
+        crop 256x256 from center
+        :param t: input image tensor of shape (3, h, w)
+        :return: 256x256 cropped tensor from the center of t
+        """
+        h_start = torch.randint(0, t.shape[1] - 256, (1,)) if t.shape[1] > 256 else 0
+        w_start = torch.randint(0, t.shape[2] - 256, (1,)) if t.shape[2] > 256 else 0
+        out = t[:, h_start: h_start + 256, w_start: w_start + 256]
+        return out
 
     def __len__(self):
         return len(self.images)
@@ -80,69 +85,69 @@ class Net(nn.Module):
         self.conv5_2 = nn.Conv2d(128, 128, 3, padding='same')
         self.conv5_3 = nn.Conv2d(128, 128, 3, padding='same')
 
+        self.conv6 = nn.Conv2d(128, 256, 3, padding='same')
+        self.conv6_1 = nn.Conv2d(256, 256, 3, padding='same')
+        self.conv6_res = nn.Conv2d(128, 256, 1, stride=2)
+        self.conv6_2 = nn.Conv2d(256, 256, 3, padding='same')
+        self.conv6_3 = nn.Conv2d(256, 256, 3, padding='same')
+
         self.max_pool = nn.MaxPool2d(2)
         self.avg_pool = nn.AvgPool2d(2)
 
-        self.fc1 = nn.Linear(2048, 1024)
+        self.fc1 = nn.Linear(4096, 1024)
         self.fc2 = nn.Linear(1024, 128)
         self.fc3 = nn.Linear(128, 16)
-
-        self.fc4 = nn.Linear(400, 80)
-        self.fc5 = nn.Linear(80, 10)
-        self.fc6 = nn.Linear(10, 1)
+        self.fc4 = nn.Linear(16, 1)
 
     def forward(self, x):
-        sub_tensors = [x[:, :, i * 128:((i + 1) * 128)] for i in range(25)]
-        sub_output = []
+        x1 = self.max_pool(torch.relu(self.conv1(x)))
+        x2 = torch.relu(self.conv2_1(x1))
+        x2 = torch.relu(self.conv2_2(x2))
+        x1 = torch.relu(x1 + x2)
+        x2 = torch.relu(self.conv2_3(x1))
+        x2 = torch.relu(self.conv2_4(x2))
+        x1 = torch.relu(x1 + x2)
 
-        for i, item in enumerate(sub_tensors):
-            x1 = self.max_pool(torch.relu(self.conv1(item)))
-            x2 = torch.relu(self.conv2_1(x1))
-            x2 = torch.relu(self.conv2_2(x2))
-            x1 = torch.relu(x1 + x2)
-            x2 = torch.relu(self.conv2_3(x1))
-            x2 = torch.relu(self.conv2_4(x2))
-            x1 = torch.relu(x1 + x2)
+        x2 = self.max_pool(torch.relu(self.conv3(x1)))
+        x2 = torch.relu(self.conv3_1(x2))
+        x3 = torch.relu(self.conv3_res(x1))
+        x1 = torch.relu(x2 + x3)
+        x2 = torch.relu(self.conv3_2(x1))
+        x2 = torch.relu(self.conv3_3(x2))
+        x1 = torch.relu(x1 + x2)
 
-            x2 = self.max_pool(torch.relu(self.conv3(x1)))
-            x2 = torch.relu(self.conv3_1(x2))
-            x3 = torch.relu(self.conv3_res(x1))
-            x1 = torch.relu(x2 + x3)
-            x2 = torch.relu(self.conv3_2(x1))
-            x2 = torch.relu(self.conv3_3(x2))
-            x1 = torch.relu(x1 + x2)
+        x2 = self.max_pool(torch.relu(self.conv4(x1)))
+        x2 = torch.relu(self.conv4_1(x2))
+        x3 = torch.relu(self.conv4_res(x1))
+        x1 = torch.relu(x2 + x3)
+        x2 = torch.relu(self.conv4_2(x1))
+        x2 = torch.relu(self.conv4_3(x2))
+        x1 = torch.relu(x1 + x2)
 
-            x2 = self.max_pool(torch.relu(self.conv4(x1)))
-            x2 = torch.relu(self.conv4_1(x2))
-            x3 = torch.relu(self.conv4_res(x1))
-            x1 = torch.relu(x2 + x3)
-            x2 = torch.relu(self.conv4_2(x1))
-            x2 = torch.relu(self.conv4_3(x2))
-            x1 = torch.relu(x1 + x2)
+        x2 = self.max_pool(torch.relu(self.conv5(x1)))
+        x2 = torch.relu(self.conv5_1(x2))
+        x3 = torch.relu(self.conv5_res(x1))
+        x1 = torch.relu(x2 + x3)
+        x2 = torch.relu(self.conv5_2(x1))
+        x2 = torch.relu(self.conv5_3(x2))
+        x1 = torch.relu(x1 + x2)
 
-            x2 = self.max_pool(torch.relu(self.conv5(x1)))
-            x2 = torch.relu(self.conv5_1(x2))
-            x3 = torch.relu(self.conv5_res(x1))
-            x1 = torch.relu(x2 + x3)
-            x2 = torch.relu(self.conv5_2(x1))
-            x2 = torch.relu(self.conv5_3(x2))
-            x1 = torch.relu(x1 + x2)
+        x2 = self.max_pool(torch.relu(self.conv6(x1)))
+        x2 = torch.relu(self.conv6_1(x2))
+        x3 = torch.relu(self.conv6_res(x1))
+        x1 = torch.relu(x2 + x3)
+        x2 = torch.relu(self.conv6_2(x1))
+        x2 = torch.relu(self.conv6_3(x2))
+        x1 = torch.relu(x1 + x2)
 
-            x1 = self.avg_pool(x1)
+        x1 = self.avg_pool(x1)
 
-            x1 = torch.flatten(x1, start_dim=1)
+        x = torch.flatten(x1, start_dim=1)
 
-            x1 = torch.relu(self.fc1(x1))
-            x1 = torch.relu(self.fc2(x1))
-            x1 = torch.relu(self.fc3(x1))
-
-            sub_output.append(torch.flatten(x1, start_dim=1))
-
-        x = torch.cat(sub_output, dim=1)
-        x = torch.relu(self.fc4(x))
-        x = torch.relu(self.fc5(x))
-        x = torch.sigmoid(self.fc6(x))
-
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        x = torch.relu(self.fc3(x))
+        x = torch.sigmoid(self.fc4(x))
         return x
 
 
@@ -159,7 +164,7 @@ def model_train(train_set, test_set, epochs, learning_rate, batch_size, test_whi
         for batch_x, batch_y in train_loader:
             optimizer.zero_grad()
             batch_pred = net(batch_x)
-            batch_loss = bce(batch_pred, batch_y)  # + 0.000001 * L1(net)
+            batch_loss = bce(batch_pred, batch_y) + 0.000001 * L1(net)
             batch_loss.backward()
             optimizer.step()
 
@@ -197,7 +202,7 @@ def model_test(test_set: Dataset, net: nn.Module):
 
     with torch.no_grad():
         test_pred = net(test_x)
-        loss = bce(test_pred, test_y)
+        loss = bce(test_pred, test_y) + 0.000001 * L1(net)
 
         for i, item in enumerate(test_pred):
             if item > 0.5 and test_y[i] > 0.5:
@@ -243,16 +248,16 @@ def L1(net: nn.Module):
 
 
 if __name__ == '__main__':
-    lr = 0.00005
-    batch = 25
+    lr = 5e-5
+    batch = 50
 
-    writer = SummaryWriter(comment=f'lr_{lr}_batch_{batch}_128')
+    writer = SummaryWriter(comment=f'lr_{lr}_batch_{batch}_256')
     dataset = Images('data', device)
     train_size = int(len(dataset) * 0.8)
     test_size = len(dataset) - train_size
     train, test = random_split(dataset, [train_size, test_size])
 
-    # model = model_train(train, test, epochs=500, batch_size=batch, learning_rate=lr, test_while_train=True)
-    model = model_train(dataset, test, epochs=200, batch_size=batch, learning_rate=lr, test_while_train=False)
+    # model = model_train(train, test, epochs=800, batch_size=batch, learning_rate=lr, test_while_train=True)
+    model = model_train(dataset, test, epochs=500, batch_size=batch, learning_rate=lr, test_while_train=False)
 
     torch.save(model.state_dict(), f'saved_models/lr_{lr}_batch_{batch}.pt')
