@@ -4,9 +4,9 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset, random_split
 from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms
+from torchvision.io import read_image
 from tqdm import tqdm
 import os
-from PIL import Image
 
 # torch.manual_seed(0)
 torch.set_default_dtype(torch.float32)
@@ -19,16 +19,15 @@ class Images(Dataset):
         self.labels = []
         self.device = device
         self.transform = transforms.Compose([
-            transforms.PILToTensor(),
             transforms.ConvertImageDtype(torch.float32),
         ])
         for file in os.listdir(f'{path}/negative/'):
-            img = Image.open(f'{path}/negative/{file}')
+            img = read_image(f'{path}/negative/{file}')
             image_tensor = self.transform(img).to(self.device)
             self.images.append(image_tensor)
             self.labels.append(torch.tensor([0.], device=self.device))
         for file in os.listdir(f'{path}/positive/'):
-            img = Image.open(f'{path}/positive/{file}')
+            img = read_image(f'{path}/positive/{file}')
             image_tensor = self.transform(img).to(self.device)
             self.images.append(image_tensor)
             self.labels.append(torch.tensor([1.], device=self.device))
@@ -258,6 +257,6 @@ if __name__ == '__main__':
     train, test = random_split(dataset, [train_size, test_size])
 
     # model = model_train(train, test, epochs=800, batch_size=batch, learning_rate=lr, test_while_train=True)
-    model = model_train(dataset, test, epochs=500, batch_size=batch, learning_rate=lr, test_while_train=False)
+    model = model_train(dataset, test, epochs=700, batch_size=batch, learning_rate=lr, test_while_train=False)
 
     torch.save(model.state_dict(), f'saved_models/lr_{lr}_batch_{batch}.pt')
